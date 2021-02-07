@@ -37,6 +37,7 @@ class InputParserPlotEGReso: public InputParserBase {
 public:
   explicit InputParserPlotEGReso(int argc, char** argv): InputParserBase(argc, argv) { run(); }
 
+  std::string baseDir() const { return baseDir_; }
   std::string tag() const { return tag_; }
   std::vector<float> etas() const { return etas_; }
   std::vector<std::string> versions() const { return versions_; }
@@ -45,6 +46,7 @@ public:
   unsigned nBack() const { return nBack_; }
 
 private:
+  std::string baseDir_;
   std::string tag_;
   std::vector<float> etas_;
   std::vector<unsigned> thicknesses_;
@@ -55,6 +57,7 @@ private:
   void set_args_final_()
   {
     tag_ = chosen_args_["--tag"];
+    baseDir_ = chosen_args_["--baseDir"];
     nBack_ = static_cast<unsigned>( std::stoi(chosen_args_["--nBack"]) );
     for(auto&& x: chosen_args_v_["--etas"])
       etas_.push_back( std::stof(x) );
@@ -68,13 +71,13 @@ private:
   void set_args_options_()
   {
     required_args_ = { "--nBack", "--thicknesses", "--signalRegions",
-		       "--versions", "--tag", "--etas" };
+		       "--versions", "--tag", "--etas", "--baseDir" };
 
     valid_args_["--nBack"] = {"0", "1", "2", "3", "4"};
     valid_args_v_["--thicknesses"] = {"100", "200", "300"};
     valid_args_v_["--signalRegions"] = {"0", "1", "2", "3", "4", "5"};
     valid_args_v_["--versions"] = {"60", "70"};
-    free_args_ = {"--tag"};
+    free_args_ = {"--tag", "--baseDir"};
     free_args_v_ = {"--etas"};
     optional_args_ = {""};
   }
@@ -86,9 +89,6 @@ int makeEfit(const bool useSigmaEff,
 	     const bool doBackLeakCor,
 	     const unsigned nBack,
 	     const unsigned pu,
-	     const unsigned ICval,
-	     const std::string scenario,
-	     const TString version,
 	     const unsigned nLayers,
 	     const unsigned eta,
 	     const unsigned pT,
@@ -108,7 +108,6 @@ int makeEfit(const bool useSigmaEff,
 
   double Eval = E(pT,eta);
   double etaval = eta/10.;
-  double etaerr = 0;
 
   const unsigned nEvtMin = 150;
 
@@ -130,9 +129,7 @@ int makeEfit(const bool useSigmaEff,
   
   //identify valid energy values
   
-  TH1F *p_Ereco;
-  TH2F *p_ErecovsEback;
-	      
+  TH1F *p_Ereco;    
   mycE->cd();
   gStyle->SetOptStat(0);
   gStyle->SetOptFit(0);
@@ -334,12 +331,12 @@ int plotEGReso(const InputParserPlotEGReso& ip) {
   for (auto&& icval: ICvals){//loop on intercalib
 
     for (auto&& version: ip.versions()) {
-      TString baseDir = "/afs/cern.ch/work/b/bfontana/PFCalEEAna/HGCalTDR/gitv" + version + "/";
-      const unsigned nLayers = version=="70" ? 26 : 28;
+      TString baseDir = ip.baseDir() + "/git" + ip.tag() + "/";
+      const unsigned nLayers = version == "70" ? 26 : 28;
 
       for (auto&& scenario: scenarios) {
 
-	TString inputDir = baseDir+"version"+version+"/"+scenario+"/";
+	TString inputDir = baseDir + "version" + version + "/" + scenario + "/";
 
 	for (auto&& eta: ip.etas()) {
 	  unsigned etax10 = static_cast<unsigned>(eta*10.);
@@ -378,6 +375,8 @@ int plotEGReso(const InputParserPlotEGReso& ip) {
 	      if (pu[ipu]>0) linputStr << "_Pu" << pu[ipu];
 	      linputStr << "_IC" << icval;// << "_Si2";
 	      linputStr << ".root";
+	      std::cout << linputStr.str() << std::endl;
+	      std::exit(0);
 	      inputFile[iE] = TFile::Open(linputStr.str().c_str());
 	      if (!inputFile[iE]) {
 		std::cout << " -- Error, input file " << linputStr.str() << " cannot be opened. Skipping..." << std::endl;
@@ -535,7 +534,7 @@ int plotEGReso(const InputParserPlotEGReso& ip) {
 		//fill sigma PU for all SR for 40 GeV E
 		if (iT>0 && pu[ipu]>0){// && pT>5 && pT<40) {
 		  unsigned iE = 6;
-		  std::vector<double> calib = GetCalib(foutEfit->GetName());
+		  std::vector<double> calib = GetCalib(/*foutEfit->GetName()*/);
 		  bool success = retrievePuSigma(pu[ipu],version,nLayers,
 						 ltree[0][oldIdx[iE]], ltree[ipu][oldIdx[iE]],
 						 calib,
@@ -579,24 +578,23 @@ int plotEGReso(const InputParserPlotEGReso& ip) {
 
 		  }
 		  
-		  int success = makeEfit(useSigmaEff, dovsE, doRaw,
-					 doBackLeakCor, ip.nBack(),
-					 pu[ipu], icval,
-					 scenario, version, nLayers,
-					 etax10,genEn[iE], iSR, radius[iSR],
-					 offset,calib,backLeakCor,
-					 mycE[oldIdx[iE]],
-					 ltree[ipu][oldIdx[iE]],
-					 foutEfit,
-					 plotDir,
-					 calibRecoFit,
-					 resoRecoFit
-					 );
+		  makeEfit(useSigmaEff, dovsE, doRaw,
+			   doBackLeakCor, ip.nBack(),
+			   pu[ipu],
+			   nLayers,
+			   etax10,genEn[iE], iSR, radius[iSR],
+			   offset,calib,backLeakCor,
+			   mycE[oldIdx[iE]],
+			   ltree[ipu][oldIdx[iE]],
+			   foutEfit,
+			   plotDir,
+			   calibRecoFit,
+			   resoRecoFit
+			   );
 		}//loop on energies
 
-		//get calib
 		makeCalibration(doRaw,doBackLeakCor,
-				etax10,pu[ipu], iSR, radius[iSR],
+				etax10,pu[ipu],radius[iSR],
 				calibRecoFit,calibRecoDelta,
 				calib,calibErr,
 				offset,offsetErr,
@@ -612,7 +610,7 @@ int plotEGReso(const InputParserPlotEGReso& ip) {
 		double noiseRef = pu[ipu]==0? noise : noisePu[iSR];
 
 		makeResolution(dovsE,doRaw,doBackLeakCor,
-			       etax10,pu[ipu],iSR,radius[iSR],
+			       etax10,pu[ipu],radius[iSR],
 			       resoRecoFit,
 			       sigmaStoch[0],
 			       sigmaConst[0],
@@ -756,8 +754,10 @@ int plotVersionRatios(const InputParserPlotEGReso& ip) {
 int main(int argc, char** argv)
 {
   InputParserPlotEGReso ip(argc, argv);
-  //plotEGReso(ip);
+  plotEGReso(ip);
+  /*
   if(ip.versions().size() == 2)
     plotVersionRatios(ip);
+  */
   return 0;
 }

@@ -22,7 +22,6 @@
 
 bool plotResolution(TGraphErrors *gr,TPad *pad,
 		    const unsigned pu,
-		    const unsigned eta,
 		    const double & stoch0,
 		    const double & const0,
 		    const double & noise0,
@@ -119,7 +118,6 @@ int makeResolution(const bool dovsE,
 		   const bool doBackLeakCor,
 		   const unsigned eta,
 		   const unsigned pu,
-		   const unsigned iSR,
 		   const double radius,
 		   TGraphErrors *resoRecoFit,
 		   const double sigmaStochRef,
@@ -142,14 +140,11 @@ int makeResolution(const bool dovsE,
 
   double stoch0 = pu==0? (dovsE?0.25 : 0.14) : sigmaStochRef;
   double const0 = pu==0? 0.01 : sigmaConstRef;
-  
-  //limit range to get more realistic RMS ?
-  //if (pu[ipu]!=0 && iSR<(nSR-1)) p_sigma[iSR]->GetXaxis()->SetRangeUser(-5,15);
+
   double noise0 = noiseRef;
   
-  
   bool success = plotResolution(resoRecoFit,lpad,
-				pu,eta,
+				pu,
 				stoch0,const0,noise0,
 				sigmaStoch,
 				sigmaStochErr,

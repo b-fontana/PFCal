@@ -21,8 +21,7 @@
 #include "TGaxis.h"
 
 
-std::vector<double> GetCalib(const std::string file){
-
+std::vector<double> GetCalib(/*const std::string file*/){
   //TBD from file
   std::vector<double> calib;
   calib.resize(6,1);
@@ -37,7 +36,7 @@ TPad* plotCalibration(TGraphErrors *& gr,
 		      std::string unit, 
 		      double & calib,double & calibErr, 
 		      double & offset, double & offsetErr,
-		      const unsigned eta, const bool dovsE){
+		      const bool dovsE){
 
   TPad *upper = 0;
   TPad *lower = 0;
@@ -73,8 +72,6 @@ TPad* plotCalibration(TGraphErrors *& gr,
   TF1 *fitFunc=new TF1("calib","[0]+[1]*x",gr->GetXaxis()->GetXmin(),gr->GetXaxis()->GetXmax());
   fitFunc->SetLineColor(6);
 
-  //if (dovsE) gr->Fit(fitFunc,"RIME","same",0,200);
-  //else gr->Fit(fitFunc,"RIME","same",0,pT(200,eta));
   if (dovsE) gr->Fit(fitFunc,"IME","same");
   else gr->Fit(fitFunc,"IME","same");
   TLatex lat;
@@ -157,7 +154,6 @@ int makeCalibration(const bool doRaw,
 		    const bool doBackLeakCor,
 		    const unsigned eta,
 		    const unsigned pu,
-		    const unsigned iSR,
 		    const double radius,
 		    TGraphErrors *calibRecoFit,
 		    TGraphErrors *calibRecoDelta,
@@ -181,7 +177,7 @@ int makeCalibration(const bool doRaw,
 				unit,
 				calib,calibErr,
 				offset,offsetErr,
-				eta,true);
+				true);
   upper->cd();
   char buf[500];
   sprintf(buf,"#gamma #eta=%3.1f + PU %d",etaval,pu);
